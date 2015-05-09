@@ -1,5 +1,5 @@
 *.swo
 *.swp
-/target
-node_modules
+target/*
+node_modules/*
 
