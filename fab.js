@@ -47,7 +47,7 @@ var libfab = ffi.Library('libfab/libfab', {
   'make_packed': [PackedTreePtr, [MathTreePtr]],
 
   // region
-  'build_arrays': [RegionPtr, ['float', 'float', 'float', 'float', 'float', 'float']],
+  'build_arrays': ['void', [RegionPtr, 'float', 'float', 'float', 'float', 'float', 'float']],
 
   // asdf
   'build_asdf': [ASDFPtr, [PackedTreePtr, Region, 'bool', IntPtr]],
@@ -64,13 +64,34 @@ libfab.print_tree_verbose(math_tree);
 var packed_tree = libfab.make_packed(math_tree);
 
 // make a region with a bounding box
+var xmin = -50;
+var xmax = 50;
+var ymin = -50;
+var ymax = 50;
+var zmin = -50;
+var zmax = 50;
+var scale = 100;
+
+var dx = xmax - xmin;
+var dy = ymax - ymin;
+var dz = zmax - zmin;
+
+var ni = Math.max(Math.round(dx * scale), 1);
+var nj = Math.max(Math.round(dy * scale), 1);
+var nk = Math.max(Math.round(dz * scale), 1);
+
 var region = new Region({
   imin: 0, jmin: 0, kmin: 0,
-  ni: 1000, nj: 1000, nk: 1000,
-  voxels: 1000 * 1000 * 1000,
-  X: new FloatArray(0), Y: new FloatArray(0), Z: new FloatArray(0), L: new FloatArray(0),
+  ni: ni, nj: nj, nk: nk,
+  voxels: ni * nj * nk,
+  X: new FloatArray(ni + 1),
+  Y: new FloatArray(nj + 1),
+  Z: new FloatArray(nk + 1),
+  L: new FloatArray(nk + 1),
 });
-console.log(region.toJSON());
+console.log(region);
+libfab.build_arrays(region.ref(), xmin, ymin, zmin, xmax, ymax, zmax);
+console.log(region);
 
 // make an ASDF root
 
