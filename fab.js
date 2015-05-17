@@ -1,3 +1,4 @@
+var gui = require('nw.gui');
 var ref = require('ref');
 var StructType = require('ref-struct');
 var ArrayType = require('ref-array');
@@ -53,6 +54,9 @@ var libfab = ffi.Library('libfab/libfab', {
   'build_asdf': [ASDFPtr, [PackedTreePtr, Region, 'bool', IntPtr]],
   'asdf_root': [ASDFPtr, [PackedTreePtr, Region]],
 });
+
+var win = gui.Window.get();
+win.showDevTools();
 
 document.write("Sum: ", libfab.add_f(1.2, 3.4));
 
