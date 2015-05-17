@@ -2,17 +2,18 @@ var gui = require('nw.gui');
 var ref = require('ref');
 var StructType = require('ref-struct');
 var ArrayType = require('ref-array');
+var UnionType = require('ref-union');
 var ffi = require('ffi');
 //var THREE = require('three');
+
+var FloatArray = ArrayType(ref.types.float);
+var UInt16Array = ArrayType(ref.types.uint16);
 
 var MathTree = ref.types.void;
 var MathTreePtr = ref.refType(MathTree);
 
 var PackedTree = ref.types.void;
 var PackedTreePtr = ref.refType(PackedTree);
-
-var FloatArray = ArrayType(ref.types.float);
-var UInt16Array = ArrayType(ref.types.uint16);
 
 var Region = StructType({
   'imin': 'uint32',
@@ -29,7 +30,31 @@ var Region = StructType({
 });
 var RegionPtr = ref.refType(Region);
 
-var ASDF = ref.types.void;
+var Interval = StructType({
+  'lower': 'float',
+  'upper': 'float',
+});
+
+var ASDF = StructType({});
+var ASDF = StructType({
+  'state': 'int',
+
+  'X': ref.refType(Interval),
+  'Y': ref.refType(Interval),
+  'Z': ref.refType(Interval),
+
+  'branches': ArrayType(ref.refType(ASDF)),
+
+  'd': FloatArray,
+
+  'data': new UnionType({
+    'vp': ref.refType('void'),
+    //'cms': ArrayType(CMSPathPtr),
+    'tri': ref.refType('uint32'),
+    //'contour: ref.refType(ref.refType(Path))
+  })
+
+});
 var ASDFPtr = ref.refType(ASDF);
 
 var IntPtr = ref.refType('int');
@@ -100,6 +125,10 @@ console.log(region);
 // make an ASDF root
 
 // build ASDF from region and packed tree
+var halt = ref.alloc(ref.types.int);
+halt.writeInt32LE(0, 0);
+console.log(halt);
+
 // attach it to ASDF root
 // use ASDF to generate mesh
 // load mesh into vertex buffer
