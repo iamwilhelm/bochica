@@ -6,8 +6,9 @@ var UnionType = require('ref-union');
 var ffi = require('ffi');
 //var THREE = require('three');
 
-var FloatArray = ArrayType(ref.types.float);
-var UInt16Array = ArrayType(ref.types.uint16);
+var FloatArray = ArrayType('float');
+var UInt16Array = ArrayType('uint16');
+var UInt32Array = ArrayType('uint32');
 
 var MathTree = ref.types.void;
 var MathTreePtr = ref.refType(MathTree);
@@ -35,42 +36,63 @@ var Interval = StructType({
   'upper': 'float',
 });
 
+//var CMSpath = StructType({})
+//var CMSpath = StructType({
+//  'edge': 'int',
+//  'next': ref.refType(CMSpath),
+//  'prev': ref.refType(CMSpath),
+////  'vertex'
+//});
+
 var ASDF = StructType({});
-var ASDF = StructType({
-  'state': 'int',
-
-  'X': ref.refType(Interval),
-  'Y': ref.refType(Interval),
-  'Z': ref.refType(Interval),
-
-  'branches': ArrayType(ref.refType(ASDF)),
-
-  'd': FloatArray,
-
-  'data': new UnionType({
+var ASDFPtr = ref.refType(ASDF);
+ASDF.defineProperty('state', 'int');
+ASDF.defineProperty('X', Interval);
+ASDF.defineProperty('Y', Interval);
+ASDF.defineProperty('Z', Interval);
+ASDF.defineProperty('branches', ArrayType(ASDFPtr, 8));
+ASDF.defineProperty('d', new ArrayType('float', 8));
+ASDF.defineProperty('data',
+  new UnionType({
     'vp': ref.refType('void'),
+    'cms': ref.refType('void'),
     //'cms': ArrayType(CMSPathPtr),
     'tri': ref.refType('uint32'),
+    'contour': ref.refType('void'),
     //'contour: ref.refType(ref.refType(Path))
   })
+);
+console.log(ASDF.size);
 
+var Mesh = StructType({
+  'vdata': FloatArray,
+  'vcount': 'uint32',
+  'valloc': 'uint32',
+
+  'tdata': UInt32Array,
+  'tcount': 'uint32',
+  'talloc': 'uint32',
+
+  'X': Interval,
+  'Y': Interval,
+  'Z': Interval,
 });
-var ASDFPtr = ref.refType(ASDF);
+var MeshPtr = ref.refType(Mesh);
 
 var IntPtr = ref.refType('int');
 
-var libfab = ffi.Library('libfab/libfab', {
+var libfab = ffi.Library('build/libfab', {
   // math
   'add_f': ['float', ['float', 'float']],
 
   // mathtree
-  //'new_tree': [MathTreePtr, ['uint32', 'uint32']],
   'parse': [MathTreePtr, ['string']],
   'print_tree': ['void', [MathTreePtr]],
   'print_tree_verbose': ['void', [MathTreePtr]],
 
   // packed tree
   'make_packed': [PackedTreePtr, [MathTreePtr]],
+  'eval_f': ['float', [PackedTreePtr, 'float', 'float', 'float']],
 
   // region
   'build_arrays': ['void', [RegionPtr, 'float', 'float', 'float', 'float', 'float', 'float']],
@@ -78,6 +100,7 @@ var libfab = ffi.Library('libfab/libfab', {
   // asdf
   'build_asdf': [ASDFPtr, [PackedTreePtr, Region, 'bool', IntPtr]],
   'asdf_root': [ASDFPtr, [PackedTreePtr, Region]],
+  'triangulate': [MeshPtr, [ASDFPtr, IntPtr]],
 });
 
 var win = gui.Window.get();
@@ -86,19 +109,19 @@ win.showDevTools();
 document.write("Sum: ", libfab.add_f(1.2, 3.4));
 
 // create a math tree with the equation
-var math_tree = libfab.parse('-r++qXqYqZf10');
-libfab.print_tree_verbose(math_tree);
+var math_tree_ptr = libfab.parse('-r++qXqYqZf1');
+libfab.print_tree_verbose(math_tree_ptr);
 
 // create a packed tree from math tree
-var packed_tree = libfab.make_packed(math_tree);
+var packed_tree_ptr = libfab.make_packed(math_tree_ptr);
 
 // make a region with a bounding box
-var xmin = -50;
-var xmax = 50;
-var ymin = -50;
-var ymax = 50;
-var zmin = -50;
-var zmax = 50;
+var xmin = -0.05;
+var xmax = 1.05;
+var ymin = -0.05;
+var ymax = 1.05;
+var zmin = -0.05;
+var zmax = 1.05;
 var scale = 100;
 
 var dx = xmax - xmin;
@@ -118,20 +141,30 @@ var region = new Region({
   Z: new FloatArray(nk + 1),
   L: new FloatArray(nk + 1),
 });
-console.log(region);
 libfab.build_arrays(region.ref(), xmin, ymin, zmin, xmax, ymax, zmax);
+console.log("Region");
 console.log(region);
 
 // make an ASDF root
+var asdf_root_ptr = libfab.asdf_root(packed_tree_ptr, region);
+console.log("ASDF root");
+console.log(asdf_root_ptr.deref());
 
 // build ASDF from region and packed tree
-var halt = ref.alloc(ref.types.int);
-halt.writeInt32LE(0, 0);
-console.log(halt);
+var halt_ptr = ref.alloc(ref.types.uint32);
+halt_ptr.writeInt32LE(0, 0);
+
+var asdf_ptr = libfab.build_asdf(packed_tree_ptr, region, true, halt_ptr);
+console.log("ASDF");
+console.log(asdf_ptr.deref());
 
 // attach it to ASDF root
+
 // use ASDF to generate mesh
+var mesh = libfab.triangulate(asdf_ptr, halt_ptr);
+console.log("Mesh");
+console.log(mesh.deref());
+
 // load mesh into vertex buffer
-//
 
 
